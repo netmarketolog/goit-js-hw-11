@@ -1,45 +1,65 @@
-import debounce from 'lodash.debounce'
 import './css/styles.css';
-import { Notify } from 'notiflix';
-import { getRefs } from './getRefs';
-import { fetchCountries } from './fetchCountries'
-import { clearCountriesList, clearCountryInfo, renderCountryInfo, renderCountryList } from './clearFn'
 
-const DEBOUNCE_DELAY = 300;
+import { getRefs } from './js/getRefs'
+import { fetchImgSearch } from './js/fetchImgSearch'
+import { renderMarkupGallery } from './js/renderMarkupGallery'
+import { Notify } from 'notiflix/build/notiflix-notify-aio';
 
 const refs = getRefs()
-refs.input.addEventListener('input', debounce(onInputSearch, DEBOUNCE_DELAY))
 
-function onInputSearch(e) {
-    const inputValue = e.target.value.trim()
-    if (!inputValue) {
-        clearCountriesList()
-        clearCountryInfo()
+let page = 1;
+let searchQuery = '';
+
+refs.searchForm.addEventListener('submit', onSearch)
+refs.btnLoadMore.addEventListener('click', onLoadMore);
+
+async function onSearch(e) {
+    e.preventDefault()
+    searchQuery = e.currentTarget.elements.searchQuery.value.trim()
+    page = 1;
+
+    if (!searchQuery) {
+        gallery.innerHTML = '';
         return;
     }
-    fetchCountries(inputValue).then(onFetchSuccess).catch(onFetchError);
+    const response = await fetchImgSearch(searchQuery, page)
+
+    if (response.totalHits > 40) {
+        refs.btnLoadMore.classList.remove('is-hidden');
+        refs.endOfResults.classList.add('is-hidden');
+    } else {
+        refs.btnLoadMore.classList.add('is-hidden');
+        refs.endOfResults.classList.remove('is-hidden');
+    }
+
+
+    if (response.totalHits > 0) {
+        Notify.success(`Hooray! We found ${response.totalHits} images.`);
+        refs.gallery.innerHTML = '';
+        renderMarkupGallery(response.hits);
+
+    }
+
+    if (response.totalHits === 0) {
+        refs.gallery.innerHTML = '';
+        Notify.failure(
+            'Sorry, there are no images matching your search query. Please try again.'
+        );
+        refs.btnLoadMore.classList.add('is-hidden');
+        refs.endOfResults.classList.add('is-hidden');
+    }
+
+
+
 }
+async function onLoadMore() {
+    page += 1;
+    const response = await fetchImgSearch(searchQuery, page);
+    renderMarkupGallery(response.hits)
 
-function onFetchSuccess(data) {
-    clearCountriesList()
-    clearCountryInfo()
-
-    if (data.length > 10) {
-        Notify.info("Too many matches found. Please enter a more specific name.")
+    if (page > response.totalHits / 40) {
+        refs.btnLoadMore.classList.add('is-hidden');
+        refs.endOfResults.classList.remove('is-hidden');
     }
-    if (data.length >= 2 && data.length <= 10) {
-        renderCountryList(data)
-    }
-
-    if (data.length === 1) {
-        renderCountryInfo(data)
-    }
-
-
-}
-
-function onFetchError() {
-
-    Notify.failure("Oops, there is no country with that name")
 
 }
