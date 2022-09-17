@@ -19,10 +19,14 @@ async function onSearch(e) {
     page = 1;
 
     if (!searchQuery) {
-        gallery.innerHTML = '';
-        return;
+        refs.btnLoadMore.classList.add('is-hidden');
+        refs.gallery.innerHTML = ''
+        Notify.failure(
+            'Sorry, there are no images matching your search. Please try another request.');
+
+        return
     }
-    const response = await fetchImgSearch(searchQuery, page)
+    const response = await fetchImgSearch(searchQuery, page);
 
     if (response.totalHits > 40) {
         refs.btnLoadMore.classList.remove('is-hidden');
